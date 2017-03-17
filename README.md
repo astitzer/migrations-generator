@@ -12,6 +12,32 @@ Generate Laravel Migrations from an existing database, including indexes and for
 
 Please note that the Laravel 4 Generator edits have been moved to `https://github.com/xethron/Laravel-4-Generators.git` to update compatibility.
 
+## Forked Installation
+
+Add to composer.json repositories:
+
+```json
+"repositories": [
+        {
+            "type": "vcs",
+            "url": "git@github.com:astitzer/migrations-generator.git"
+        }
+    ],
+```
+
+Composer require:
+
+```bash
+composer require --dev "astitzer/migrations-generator"
+```
+
+Edit `config/app.php` and add this to providers section:
+
+```php
+Way\Generators\GeneratorsServiceProvider::class,
+Xethron\MigrationsGenerator\MigrationsGeneratorServiceProvider::class,
+```
+
 ## Laravel 5 installation
 
 The recommended way to install this is through composer:
