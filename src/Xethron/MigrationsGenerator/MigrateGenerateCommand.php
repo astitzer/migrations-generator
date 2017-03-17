@@ -111,6 +111,12 @@ class MigrateGenerateCommand extends GeneratorCommand {
     protected $singleMigration = false;
 
     /**
+	 * Array of tables to store assocatiated fields for single migration
+	 * @var array
+	 */
+	protected $singleMigrationTables = array();
+
+    /**
 	 * @param \Way\Generators\Generator  $generator
 	 * @param \Way\Generators\Filesystem\Filesystem  $file
 	 * @param \Way\Generators\Compilers\TemplateCompiler  $compiler
@@ -149,6 +155,10 @@ class MigrateGenerateCommand extends GeneratorCommand {
 			$this->option('defaultIndexNames'),
 			$this->option('defaultFKNames')
 		);
+
+		if ($this->option('singleMigration')) {
+            $this->singleMigration = $this->migrationName = $this->option('singleMigration');
+        }
 
 		if ( $this->argument( 'tables' ) ) {
 			$tables = explode( ',', $this->argument( 'tables' ) );
@@ -233,8 +243,6 @@ class MigrateGenerateCommand extends GeneratorCommand {
 		$this->method = 'create';
 
 		foreach ( $tables as $table ) {
-			$this->table = $table;
-
 			if ( ! $this->singleMigration) {
 				$this->migrationName = 'create_'. $this->table .'_table';
 				$this->fields = $this->schemaGenerator->getFields( $this->table );
@@ -242,8 +250,9 @@ class MigrateGenerateCommand extends GeneratorCommand {
 				$this->generate();
 
 			} else {
-				$this->fields = array_merge($this->fields, $this->schemaGenerator->getFields( $this->table ));
-
+				$this->singleMigrationTables[] = (object) ['name' => $table,
+															'method' => 'create',
+															'fields' => $this->schemaGenerator->getFields( $table )];
 			}
 		}
 	}
@@ -259,7 +268,6 @@ class MigrateGenerateCommand extends GeneratorCommand {
 		$this->method = 'table';
 
 		foreach ( $tables as $table ) {
-			$this->table = $table;
 			
 			if ( ! $this->singleMigration) {
 				$this->migrationName = 'add_foreign_keys_to_'. $this->table .'_table';
@@ -268,13 +276,13 @@ class MigrateGenerateCommand extends GeneratorCommand {
 				$this->generate();
 
 			} else {
-				$this->fields = array_merge($this->fields, $this->schemaGenerator->getForeignKeyConstraints( $this->table ));
-
+				$this->singleMigrationTables[] = (object) ['name' => $table,
+															'method' => 'table',
+															'fields' => $this->schemaGenerator->getForeignKeyConstraints( $table )];
 			}
 		}
 
 		if ($this->singleMigration) {
-			$this->migrationName = $this->singleMigration;
 			$this->generate();
 		}
 	}
@@ -286,7 +294,7 @@ class MigrateGenerateCommand extends GeneratorCommand {
 	 */
 	protected function generate()
 	{
-		if ( $this->fields ) {
+		if ( $this->fields || $this->singleMigration) {
 			parent::fire();
 
 			if ( $this->log ) {
@@ -327,14 +335,31 @@ class MigrateGenerateCommand extends GeneratorCommand {
 	 */
 	protected function getTemplateData()
 	{
-		if ( $this->method == 'create' ) {
-			$up = (new AddToTable($this->file, $this->compiler))->run($this->fields, $this->table, $this->connection, 'create');
-			$down = (new DroppedTable)->drop($this->table, $this->connection);
-		}
+		if ($this->singleMigration) {
+			$up = $down = '';
+			foreach ($this->singleMigrationTables as $table) {
+				if ( $table->method === 'create' ) {
+					$up .= (new AddToTable($this->file, $this->compiler))->run($table->fields, $table->name, $this->connection, 'create') . "\n\n\t\t";
+					$down .= (new DroppedTable)->drop($table->name, $this->connection) . "\n\n\t\t";
 
-		if ( $this->method == 'table' ) {
-			$up = (new AddForeignKeysToTable($this->file, $this->compiler))->run($this->fields, $this->table, $this->connection);
-			$down = (new RemoveForeignKeysFromTable($this->file, $this->compiler))->run($this->fields, $this->table, $this->connection);
+				} else if ( $table->method === 'table' ) {
+					if ( ! empty($table->fields)) {
+						$up .= (new AddForeignKeysToTable($this->file, $this->compiler))->run($table->fields, $table->name, $this->connection) . "\n\n\t\t";
+						$down .= (new RemoveForeignKeysFromTable($this->file, $this->compiler))->run($table->fields, $table->name, $this->connection) . "\n\n\t\t";
+					}
+				}
+			}
+
+		} else {
+			if ( $this->method == 'create' ) {
+				$up = (new AddToTable($this->file, $this->compiler))->run($this->fields, $this->table, $this->connection, 'create');
+				$down = (new DroppedTable)->drop($this->table, $this->connection);
+			}
+
+			if ( $this->method == 'table' ) {
+				$up = (new AddForeignKeysToTable($this->file, $this->compiler))->run($this->fields, $this->table, $this->connection);
+				$down = (new RemoveForeignKeysFromTable($this->file, $this->compiler))->run($this->fields, $this->table, $this->connection);
+			}
 		}
 
 		return [
