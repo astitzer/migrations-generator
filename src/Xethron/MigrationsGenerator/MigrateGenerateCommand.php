@@ -106,6 +106,11 @@ class MigrateGenerateCommand extends GeneratorCommand {
     protected $connection = null;
 
     /**
+     * @var string|null
+     */
+    protected $singleMigration = false;
+
+    /**
 	 * @param \Way\Generators\Generator  $generator
 	 * @param \Way\Generators\Filesystem\Filesystem  $file
 	 * @param \Way\Generators\Compilers\TemplateCompiler  $compiler
@@ -229,10 +234,17 @@ class MigrateGenerateCommand extends GeneratorCommand {
 
 		foreach ( $tables as $table ) {
 			$this->table = $table;
-			$this->migrationName = 'create_'. $this->table .'_table';
-			$this->fields = $this->schemaGenerator->getFields( $this->table );
-			
-			$this->generate();
+
+			if ( ! $this->singleMigration) {
+				$this->migrationName = 'create_'. $this->table .'_table';
+				$this->fields = $this->schemaGenerator->getFields( $this->table );
+
+				$this->generate();
+
+			} else {
+				$this->fields = array_merge($this->fields, $this->schemaGenerator->getFields( $this->table ));
+
+			}
 		}
 	}
 
@@ -248,9 +260,21 @@ class MigrateGenerateCommand extends GeneratorCommand {
 
 		foreach ( $tables as $table ) {
 			$this->table = $table;
-			$this->migrationName = 'add_foreign_keys_to_'. $this->table .'_table';
-			$this->fields = $this->schemaGenerator->getForeignKeyConstraints( $this->table );
+			
+			if ( ! $this->singleMigration) {
+				$this->migrationName = 'add_foreign_keys_to_'. $this->table .'_table';
+				$this->fields = $this->schemaGenerator->getForeignKeyConstraints( $this->table );
 
+				$this->generate();
+
+			} else {
+				$this->fields = array_merge($this->fields, $this->schemaGenerator->getForeignKeyConstraints( $this->table ));
+
+			}
+		}
+
+		if ($this->singleMigration) {
+			$this->migrationName = $this->singleMigration;
 			$this->generate();
 		}
 	}
@@ -357,6 +381,7 @@ class MigrateGenerateCommand extends GeneratorCommand {
 			['templatePath', 'tp', InputOption::VALUE_OPTIONAL, 'The location of the template for this generator'],
 			['defaultIndexNames', null, InputOption::VALUE_NONE, 'Don\'t use db index names for migrations'],
 			['defaultFKNames', null, InputOption::VALUE_NONE, 'Don\'t use db foreign key names for migrations'],
+			['singleMigration', 's', InputOption::VALUE_OPTIONAL, 'Create a single migration file'],
 		];
 	}
 
