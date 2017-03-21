@@ -25,10 +25,12 @@ Add to composer.json repositories:
     ],
 ```
 
-Composer require:
+Add to composer.json require-dev:
 
-```bash
-composer require --dev "astitzer/migrations-generator"
+```json
+"require-dev": {
+        "xethron/migrations-generator": "dev-master"
+    }
 ```
 
 Edit `config/app.php` and add this to providers section:
