@@ -98,6 +98,8 @@ Laravel Migrations Generator will first generate all the tables, columns and ind
 
 You can also specify the connection name if you are not using your default connection with `--connection="connection_name"`
 
+You can also specify a single migration file name to generate one single file for all migrations with `--singleMigration="filename"`
+
 Run `php artisan help migrate:generate` for a list of options.
 
 Check out Chung Tran's blog post for a quick step by step introduction: [Generate Migrations from an existing database in Laravel 4](http://codingtip.blogspot.com/2014/04/laravel-4-generate-migration-existed-dabase-laravel-4.html)
